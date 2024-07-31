@@ -20,6 +20,7 @@ package org.apache.doris.nereids.util;
 import org.apache.doris.catalog.TableIf.TableType;
 import org.apache.doris.common.MaterializedViewException;
 import org.apache.doris.common.NereidsException;
+import org.apache.doris.common.Pair;
 import org.apache.doris.nereids.CascadesContext;
 import org.apache.doris.nereids.rules.expression.ExpressionRewriteContext;
 import org.apache.doris.nereids.rules.expression.rules.FoldConstantRule;
@@ -64,6 +65,7 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.BitSet;
 import java.util.Collection;
@@ -128,6 +130,13 @@ public class ExpressionUtils {
         } else {
             result.add(expr);
         }
+    }
+
+    public static Optional<Pair<Slot, Slot>> extractEqualSlot(Expression expr) {
+        if (expr instanceof EqualTo && expr.child(0).isSlot() && expr.child(1).isSlot()) {
+            return Optional.of(Pair.of((Slot) expr.child(0), (Slot) expr.child(1)));
+        }
+        return Optional.empty();
     }
 
     public static Optional<Expression> optionalAnd(List<Expression> expressions) {
@@ -514,9 +523,7 @@ public class ExpressionUtils {
         ImmutableList<Literal> literals =
                 ImmutableList.of(new NullLiteral(BooleanType.INSTANCE), BooleanLiteral.FALSE);
         List<MarkJoinSlotReference> markJoinSlotReferenceList =
-                ((Set<MarkJoinSlotReference>) predicate
-                        .collect(MarkJoinSlotReference.class::isInstance)).stream()
-                                .collect(Collectors.toList());
+                new ArrayList<>((predicate.collect(MarkJoinSlotReference.class::isInstance)));
         int markSlotSize = markJoinSlotReferenceList.size();
         int maxMarkSlotCount = 4;
         // if the conjunct has mark slot, and maximum 4 mark slots(for performance)
@@ -690,6 +697,15 @@ public class ExpressionUtils {
             set.addAll(expr.collectToList(predicate));
         }
         return set.build();
+    }
+
+    public static <E> List<E> collectToList(Collection<? extends Expression> expressions,
+            Predicate<TreeNode<Expression>> predicate) {
+        ImmutableList.Builder<E> list = ImmutableList.builder();
+        for (Expression expr : expressions) {
+            list.addAll(expr.collectToList(predicate));
+        }
+        return list.build();
     }
 
     /**

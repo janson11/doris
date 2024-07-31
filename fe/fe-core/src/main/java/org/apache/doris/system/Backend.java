@@ -20,6 +20,7 @@ package org.apache.doris.system;
 import org.apache.doris.catalog.DiskInfo;
 import org.apache.doris.catalog.DiskInfo.DiskState;
 import org.apache.doris.catalog.Env;
+import org.apache.doris.cloud.proto.Cloud;
 import org.apache.doris.common.Config;
 import org.apache.doris.common.FeConstants;
 import org.apache.doris.common.io.Text;
@@ -93,6 +94,8 @@ public class Backend implements Writable {
     @SerializedName("disksRef")
     private volatile ImmutableMap<String, DiskInfo> disksRef;
 
+    private Long lastPublishTaskAccumulatedNum = 0L;
+
     private String heartbeatErrMsg = "";
 
     // This is used for the first time we init pathHashToDishInfo in SystemInfoService.
@@ -126,7 +129,9 @@ public class Backend implements Writable {
     // cpu cores
     @SerializedName("cpuCores")
     private int cpuCores = 1;
-
+    // The physical memory available for use by BE.
+    @SerializedName("beMemory")
+    private long beMemory = 0;
     // from config::pipeline_executor_size , default equal cpuCores
     @SerializedName("pipelineExecutorSize")
     private int pipelineExecutorSize = 1;
@@ -178,7 +183,7 @@ public class Backend implements Writable {
     }
 
     public String getCloudClusterStatus() {
-        return tagMap.getOrDefault(Tag.CLOUD_CLUSTER_STATUS, "");
+        return tagMap.getOrDefault(Tag.CLOUD_CLUSTER_STATUS, String.valueOf(Cloud.ClusterStatus.UNKNOWN));
     }
 
     public void setCloudClusterStatus(final String clusterStatus) {
@@ -377,6 +382,10 @@ public class Backend implements Writable {
 
     public int getCputCores() {
         return cpuCores;
+    }
+
+    public long getBeMemory() {
+        return beMemory;
     }
 
     public int getPipelineExecutorSize() {
@@ -718,7 +727,7 @@ public class Backend implements Writable {
     public String toString() {
         return "Backend [id=" + id + ", host=" + host + ", heartbeatPort=" + heartbeatPort + ", alive=" + isAlive.get()
                 + ", lastStartTime=" + TimeUtils.longToTimeString(lastStartTime) + ", process epoch=" + lastStartTime
-                + ", tags: " + tagMap + "]";
+                + ", isDecommissioned=" + isDecommissioned + ", tags: " + tagMap + "]";
     }
 
     public String getHealthyStatus() {
@@ -769,6 +778,10 @@ public class Backend implements Writable {
                     hbResponse.getNodeRole())) {
                 isChanged = true;
                 this.nodeRoleTag = Tag.createNotCheck(Tag.TYPE_ROLE, hbResponse.getNodeRole());
+            }
+            if (this.beMemory != hbResponse.getBeMemory()) {
+                isChanged = true;
+                this.beMemory = hbResponse.getBeMemory();
             }
 
             this.lastUpdateMs = hbResponse.getHbTime();
@@ -909,6 +922,14 @@ public class Backend implements Writable {
 
     public String getTagMapString() {
         return "{" + new PrintableMap<>(tagMap, ":", true, false).toString() + "}";
+    }
+
+    public Long getPublishTaskLastTimeAccumulated() {
+        return this.lastPublishTaskAccumulatedNum;
+    }
+
+    public void setPublishTaskLastTimeAccumulated(Long accumulatedNum) {
+        this.lastPublishTaskAccumulatedNum = accumulatedNum;
     }
 
 }

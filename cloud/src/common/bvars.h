@@ -175,6 +175,7 @@ extern BvarLatencyRecorderWithTag g_bvar_ms_get_cluster_status;
 extern BvarLatencyRecorderWithTag g_bvar_ms_set_cluster_status;
 extern BvarLatencyRecorderWithTag g_bvar_ms_get_instance;
 extern BvarLatencyRecorderWithTag g_bvar_ms_get_rl_task_commit_attach;
+extern BvarLatencyRecorderWithTag g_bvar_ms_reset_rl_progress;
 extern BvarLatencyRecorderWithTag g_bvar_ms_get_txn_id;
 extern BvarLatencyRecorderWithTag g_bvar_ms_check_kv;
 
@@ -233,6 +234,7 @@ extern bvar::Status<int64_t> g_bvar_fdb_workload_written_bytes_hz;
 extern bvar::Status<int64_t> g_bvar_fdb_workload_transactions_started_hz;
 extern bvar::Status<int64_t> g_bvar_fdb_workload_transactions_committed_hz;
 extern bvar::Status<int64_t> g_bvar_fdb_workload_transactions_rejected_hz;
+extern bvar::Status<int64_t> g_bvar_fdb_client_thread_busyness_percent;
 
 // checker
 extern BvarStatusWithTag<long> g_bvar_checker_num_scanned;

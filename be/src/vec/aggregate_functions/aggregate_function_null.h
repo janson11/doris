@@ -74,6 +74,7 @@ public:
                                     const DataTypes& arguments)
             : IAggregateFunctionHelper<Derived>(arguments),
               nested_function {assert_cast<NestFunction*>(nested_function_)} {
+        DCHECK(nested_function_ != nullptr);
         if (result_is_nullable) {
             prefix_size = nested_function->align_of_data();
         } else {
@@ -180,8 +181,6 @@ public:
     bool allocates_memory_in_arena() const override {
         return nested_function->allocates_memory_in_arena();
     }
-
-    bool is_state() const override { return nested_function->is_state(); }
 };
 
 /** There are two cases: for single argument and variadic.
@@ -202,7 +201,8 @@ public:
 
     void add(AggregateDataPtr __restrict place, const IColumn** columns, ssize_t row_num,
              Arena* arena) const override {
-        const ColumnNullable* column = assert_cast<const ColumnNullable*>(columns[0]);
+        const ColumnNullable* column =
+                assert_cast<const ColumnNullable*, TypeCheckOnRelease::DISABLE>(columns[0]);
         if (!column->is_null_at(row_num)) {
             this->set_flag(place);
             const IColumn* nested_column = &column->get_nested_column();
@@ -310,7 +310,9 @@ public:
 
         for (size_t i = 0; i < number_of_arguments; ++i) {
             if (is_nullable[i]) {
-                const auto& nullable_col = assert_cast<const ColumnNullable&>(*columns[i]);
+                const auto& nullable_col =
+                        assert_cast<const ColumnNullable&, TypeCheckOnRelease::DISABLE>(
+                                *columns[i]);
                 if (nullable_col.is_null_at(row_num)) {
                     /// If at least one column has a null value in the current row,
                     /// we don't process this row.

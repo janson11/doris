@@ -180,8 +180,7 @@ public class StatisticsUtil {
         }
     }
 
-    public static ColumnStatistic deserializeToColumnStatistics(List<ResultRow> resultBatches)
-            throws Exception {
+    public static ColumnStatistic deserializeToColumnStatistics(List<ResultRow> resultBatches) {
         if (CollectionUtils.isEmpty(resultBatches)) {
             return null;
         }
@@ -192,7 +191,8 @@ public class StatisticsUtil {
         return resultBatches.stream().map(Histogram::fromResultRow).collect(Collectors.toList());
     }
 
-    public static PartitionColumnStatistic deserializeToPartitionStatistics(List<ResultRow> resultBatches) {
+    public static PartitionColumnStatistic deserializeToPartitionStatistics(List<ResultRow> resultBatches)
+            throws IOException {
         if (CollectionUtils.isEmpty(resultBatches)) {
             return null;
         }
@@ -224,6 +224,7 @@ public class StatisticsUtil {
         sessionVariable.enablePushDownMinMaxOnUnique = true;
         sessionVariable.enablePushDownStringMinMax = true;
         sessionVariable.enableUniqueKeyPartialUpdate = false;
+        sessionVariable.enableMaterializedViewRewrite = false;
         connectContext.setEnv(Env.getCurrentEnv());
         connectContext.setDatabase(FeConstants.INTERNAL_DB_NAME);
         connectContext.setQualifiedUser(UserIdentity.ROOT.getQualifiedUser());
@@ -479,10 +480,13 @@ public class StatisticsUtil {
             //                         dbName,
             //                         StatisticConstants.HISTOGRAM_TBL_NAME));
         } catch (Throwable t) {
+            LOG.info("stat table does not exist, db_name: {}, table_name: {}", dbName,
+                        StatisticConstants.TABLE_STATISTIC_TBL_NAME);
             return false;
         }
         if (Config.isCloudMode()) {
             if (!((CloudSystemInfoService) Env.getCurrentSystemInfo()).availableBackendsExists()) {
+                LOG.info("there are no available backends");
                 return false;
             }
             try (AutoCloseConnectContext r = buildConnectContext()) {
@@ -980,6 +984,9 @@ public class StatisticsUtil {
         if (column == null) {
             return false;
         }
+        if (!table.autoAnalyzeEnabled()) {
+            return false;
+        }
         AnalysisManager manager = Env.getServingEnv().getAnalysisManager();
         TableStatsMeta tableStatsStatus = manager.findTableStatsStatus(table.getId());
         // Table never been analyzed, need analyze.
@@ -995,6 +1002,12 @@ public class StatisticsUtil {
         if (columnStatsMeta == null) {
             return true;
         }
+        // Column hasn't been analyzed for longer than config interval.
+        if (Config.auto_analyze_interval_seconds > 0
+                && System.currentTimeMillis() - columnStatsMeta.updatedTime
+                        > Config.auto_analyze_interval_seconds * 1000) {
+            return true;
+        }
         // Partition table partition stats never been collected.
         if (StatisticsUtil.enablePartitionAnalyze() && table.isPartitionedTable()
                 && columnStatsMeta.partitionUpdateRows == null) {
@@ -1003,7 +1016,7 @@ public class StatisticsUtil {
         if (table instanceof OlapTable) {
             OlapTable olapTable = (OlapTable) table;
             // 0. Check new partition first time loaded flag.
-            if (olapTable.isPartitionColumn(column.second) && tableStatsStatus.partitionChanged.get()) {
+            if (tableStatsStatus.partitionChanged.get()) {
                 return true;
             }
             // 1. Check row count.

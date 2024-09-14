@@ -74,6 +74,7 @@ BvarLatencyRecorderWithTag g_bvar_ms_get_delete_bitmap_update_lock("ms",
                                                                    "get_delete_bitmap_update_lock");
 BvarLatencyRecorderWithTag g_bvar_ms_get_instance("ms", "get_instance");
 BvarLatencyRecorderWithTag g_bvar_ms_get_rl_task_commit_attach("ms", "get_rl_task_commit_attach");
+BvarLatencyRecorderWithTag g_bvar_ms_reset_rl_progress("ms", "reset_rl_progress");
 BvarLatencyRecorderWithTag g_bvar_ms_get_txn_id("ms", "get_txn_id");
 
 BvarLatencyRecorderWithTag g_bvar_ms_start_tablet_job("ms", "start_tablet_job");
@@ -176,6 +177,8 @@ bvar::Status<int64_t> g_bvar_fdb_workload_transactions_committed_hz(
         "fdb_workload_transactions_committed_hz", BVAR_FDB_INVALID_VALUE);
 bvar::Status<int64_t> g_bvar_fdb_workload_transactions_rejected_hz(
         "fdb_workload_transactions_rejected_hz", BVAR_FDB_INVALID_VALUE);
+bvar::Status<int64_t> g_bvar_fdb_client_thread_busyness_percent(
+        "fdb_client_thread_busyness_percent", BVAR_FDB_INVALID_VALUE);
 
 // checker's bvars
 BvarStatusWithTag<long> g_bvar_checker_num_scanned("checker", "num_scanned");
